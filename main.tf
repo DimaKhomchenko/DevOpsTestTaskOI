@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "eu-north-1"
+  region = var.region
 }
 #----------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ data "aws_route_table" "selected" {
 }
 #----------------------------------------------------------------------------
 resource "aws_vpc" "test_vpc" {
-  cidr_block       = "192.168.0.0/16"
+  cidr_block       = var.vpc_cidr_block
   instance_tenancy = "default"
 
   tags = {
@@ -32,7 +32,7 @@ resource "aws_vpc" "test_vpc" {
 
 resource "aws_subnet" "test_subnet_a" {
   vpc_id                  = aws_vpc.test_vpc.id
-  cidr_block              = "192.168.101.0/24"
+  cidr_block              = var.subnet_a_cidr_block
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
@@ -43,7 +43,7 @@ resource "aws_subnet" "test_subnet_a" {
 
 resource "aws_subnet" "test_subnet_b" {
   vpc_id                  = aws_vpc.test_vpc.id
-  cidr_block              = "192.168.102.0/24"
+  cidr_block              = var.subnet_b_cidr_block
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
 
@@ -73,7 +73,7 @@ resource "aws_security_group" "http_https_ssh" {
   vpc_id      = aws_vpc.test_vpc.id
 
   dynamic "ingress" {
-    for_each = ["22", "80", "443", "8080"]
+    for_each = var.allow_ports
     content {
       from_port   = ingress.value
       to_port     = ingress.value
@@ -97,7 +97,7 @@ resource "aws_security_group" "http_https_ssh" {
 
 resource "aws_launch_template" "test_docker_web_server" {
   name_prefix            = "TestDockerWebServerLT"
-  instance_type          = "t3.micro"
+  instance_type          = var.instance_type
   image_id               = data.aws_ami.latest_amazon_linux.image_id
   vpc_security_group_ids = [aws_security_group.http_https_ssh.id]
   user_data              = filebase64("external.sh")
@@ -163,8 +163,4 @@ resource "aws_lb_target_group" "test_ALB_TG" {
     path                = "/"
     port                = 8080
   }
-}
-
-output "ALB_URL" {
-  value = aws_lb.test_ALB.dns_name
 }
